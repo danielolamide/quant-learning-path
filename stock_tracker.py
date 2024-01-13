@@ -3,6 +3,8 @@ import pandas as pd
 import yfinance as yf
 import argparse
 import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.arima.model import ARIMA
 
 
 class StockTracker:
@@ -12,6 +14,15 @@ class StockTracker:
 
     def get_stock_history(self) -> DataFrame:
         ticker_data = yf.download(self.ticker, period=self.period)
+        """
+        re-index timeseries to business-daily frequency and include the parameter method=ffill
+        as missing timestamps will be added and missing stock data will be set to NaN
+        """
+        ticker_data = ticker_data.asfreq("B", method="ffill")
+        print("Sample Few Rows\n", ticker_data.head())
+        print("Data Info:", ticker_data.info())
+        # great for dealing with null values in time series
+        # ticker_data= ticker_data.ffill()
         return ticker_data
 
     def describe_stock_data(self, stock_data: DataFrame):
@@ -48,6 +59,32 @@ class StockTracker:
         plt.legend()
         plt.show()
 
+    def test_stationarity(self, stock_data: DataFrame):
+        result = adfuller(stock_data["Close"], autolag="AIC")
+        print("ADF Statistic", result[0])
+        print("p-value", result[1])
+        print("Critical Values", result[4])
+
+    def forecast_stock(self, stock_data: DataFrame):
+        p, d, q = 1, 1, 1
+        # freq = pd.infer_freq(stock_data.index)
+        # fit ARIMA model
+        model = ARIMA(stock_data["Close"], order=(p, d, q))
+        results = model.fit()
+
+        forecast_steps = 5
+        forecast = results.get_forecast(steps=forecast_steps)
+        print(forecast.predicted_mean)
+
+        plt.figure(figsize=(12, 6))
+        plt.plot(stock_data["Close"], label="Historical Data")
+        # plt.plot(forecast.predicted_mean, color="red", label="Forecast")
+        plt.title(f"ARIMA ({p}, {d}, {q}) Forecast for {self.ticker}")
+        plt.xlabel("Date")
+        plt.ylabel("Closing Price")
+        plt.legend()
+        plt.show()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Track Stock History")
@@ -65,5 +102,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tracker = StockTracker(args.stock, args.period)
     stock_data = tracker.get_stock_history()
-    tracker.visualize_moving_avg(stock_data, 50)
+    tracker.forecast_stock(stock_data)
     exit()
