@@ -72,7 +72,7 @@ class StockTracker:
         model = ARIMA(stock_data["Close"], order=(p, d, q))
         results = model.fit()
 
-        forecast_steps = 5
+        forecast_steps = 100
         forecast = results.get_forecast(steps=forecast_steps)
         print(forecast.predicted_mean)
 
