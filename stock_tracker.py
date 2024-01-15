@@ -5,6 +5,8 @@ import argparse
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.arima.model import ARIMA
+import pmdarima as pm
+from typing import Tuple
 
 
 class StockTracker:
@@ -15,15 +17,47 @@ class StockTracker:
     def get_stock_history(self) -> DataFrame:
         ticker_data = yf.download(self.ticker, period=self.period)
         """
-        re-index timeseries to business-daily frequency and include the parameter method=ffill
-        as missing timestamps will be added and missing stock data will be set to NaN
+        re-sampling a timeseries to a weekly frequency this is benefitial for noise reduction
         """
-        ticker_data = ticker_data.asfreq("B", method="ffill")
         print("Sample Few Rows\n", ticker_data.head())
-        print("Data Info:", ticker_data.info())
-        # great for dealing with null values in time series
-        # ticker_data= ticker_data.ffill()
         return ticker_data
+
+    def get_model_data(self, stock_data: DataFrame) -> Tuple:
+        training_size = int(len(stock_data) * 0.8)
+        self.training_data = stock_data[:training_size]
+        self.testing_data = stock_data[training_size:]
+
+        """
+        Resampling the data to obtain weekly prices
+        Open : Get first opening price of the week
+        High: Max price of the week
+        Low: Min price of the week
+        Close: Last price of the week
+        Adj Close: Last adjusted close price of the week
+        """
+        # TODO try resample the data to monthly timeframe to check predictability
+
+        self.training_data = self.training_data.resample("W").agg(
+            {
+                "Open": "first",
+                "High": "max",
+                "Low": "min",
+                "Close": "last",
+                "Adj Close": "last",
+            }
+        )
+
+        self.testing_data = self.testing_data.resample("W").agg(
+            {
+                "Open": "first",
+                "High": "max",
+                "Low": "min",
+                "Close": "last",
+                "Adj Close": "last",
+            }
+        )
+
+        return self.training_data, self.testing_data
 
     def describe_stock_data(self, stock_data: DataFrame):
         summary = stock_data.describe()
@@ -65,25 +99,61 @@ class StockTracker:
         print("p-value", result[1])
         print("Critical Values", result[4])
 
-    def forecast_stock(self, stock_data: DataFrame):
-        p, d, q = 1, 1, 1
-        # freq = pd.infer_freq(stock_data.index)
-        # fit ARIMA model
-        model = ARIMA(stock_data["Close"], order=(p, d, q))
-        results = model.fit()
+    def fit_model(self, training_data):
+        arima_fit = pm.auto_arima(
+            stock_data["Close"],
+            error_action="ignore",
+            suppress_warnings=True,
+            stepwise=False,
+            approximation=False,
+            seasonal=False,
+        )
+        # print(arima_fit.summary())
+        return arima_fit
 
-        forecast_steps = 100
-        forecast = results.get_forecast(steps=forecast_steps)
-        print(forecast.predicted_mean)
+    def forecast_testing_data(self, testing_data: DataFrame):
+        testing_data.drop(columns=["Open", "High", "Low", "Adj Close"], inplace=True)
+        n_fcast = len(testing_data)
+        arima_fit = self.fit_model(self.training_data)
+        arima_fcast = arima_fit.predict(
+            n_periods=n_fcast, return_conf_int=True, alpha=0.05
+        )
+        # arima_fcast = [
+        #     pd.DataFrame(arima_fcast[0], columns=["prediction"]),
+        #     pd.DataFrame(arima_fcast[1], columns=["lower_95", "upper_95"]),
+        # ]
+        arima_fcast = pd.DataFrame(
+            arima_fcast[0], columns=["prediction"], index=testing_data.index
+        )
+        print(arima_fcast)
+        return
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(stock_data["Close"], label="Historical Data")
-        # plt.plot(forecast.predicted_mean, color="red", label="Forecast")
-        plt.title(f"ARIMA ({p}, {d}, {q}) Forecast for {self.ticker}")
+        plt.figure(figsize=(12, 8))
+        plt.plot(testing_data["Close"], label="Actual Closing Prices")
+        plt.plot(arima_fcast.prediction, label="ARIMA Forecast", color="red")
+        plt.title(f"{self.ticker} stock price actual vs predicted")
         plt.xlabel("Date")
-        plt.ylabel("Closing Price")
+        plt.ylabel("Price (USD)")
         plt.legend()
         plt.show()
+
+        # p, d, q = 1, 1, 1
+        # fit ARIMA model with tuning to maximize AIC score
+        # model = ARIMA(stock_data["Close"], order=(p, d, q))
+        # results = model.fit()
+        #
+        # forecast_steps = 10
+        # forecast = results.get_forecast(steps=forecast_steps)
+        # print(forecast.predicted_mean)
+        #
+        # plt.figure(figsize=(12, 6))
+        # plt.plot(stock_data["Close"], label="Historical Data")
+        # # plt.plot(forecast.predicted_mean, color="red", label="Forecast")
+        # plt.title(f"ARIMA ({p}, {d}, {q}) Forecast for {self.ticker}")
+        # plt.xlabel("Date")
+        # plt.ylabel("Closing Price")
+        # plt.legend()
+        # plt.show()
 
 
 if __name__ == "__main__":
@@ -102,5 +172,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tracker = StockTracker(args.stock, args.period)
     stock_data = tracker.get_stock_history()
-    tracker.forecast_stock(stock_data)
+    training_data, testing_data = tracker.get_model_data(stock_data)
+    tracker.forecast_testing_data(training_data)
     exit()
