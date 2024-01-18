@@ -22,11 +22,7 @@ class StockTracker:
         print("Sample Few Rows\n", ticker_data.head())
         return ticker_data
 
-    def get_model_data(self, stock_data: DataFrame) -> Tuple:
-        training_size = int(len(stock_data) * 0.8)
-        self.training_data = stock_data[:training_size]
-        self.testing_data = stock_data[training_size:]
-
+    def get_model_data(self, stock_data) -> Tuple:
         """
         Resampling the data to obtain weekly prices
         Open : Get first opening price of the week
@@ -37,7 +33,7 @@ class StockTracker:
         """
         # TODO try resample the data to monthly timeframe to check predictability
 
-        self.training_data = self.training_data.resample("W").agg(
+        stock_data = stock_data.resample("W").agg(
             {
                 "Open": "first",
                 "High": "max",
@@ -46,16 +42,9 @@ class StockTracker:
                 "Adj Close": "last",
             }
         )
-
-        self.testing_data = self.testing_data.resample("W").agg(
-            {
-                "Open": "first",
-                "High": "max",
-                "Low": "min",
-                "Close": "last",
-                "Adj Close": "last",
-            }
-        )
+        training_size = int(len(stock_data) * 0.8)
+        self.training_data = stock_data[:training_size]
+        self.testing_data = stock_data[training_size:]
 
         return self.training_data, self.testing_data
 
@@ -101,7 +90,7 @@ class StockTracker:
 
     def fit_model(self, training_data):
         arima_fit = pm.auto_arima(
-            stock_data["Close"],
+            training_data["Close"],
             error_action="ignore",
             suppress_warnings=True,
             stepwise=False,
@@ -122,20 +111,20 @@ class StockTracker:
         #     pd.DataFrame(arima_fcast[0], columns=["prediction"]),
         #     pd.DataFrame(arima_fcast[1], columns=["lower_95", "upper_95"]),
         # ]
-        arima_fcast = pd.DataFrame(
-            arima_fcast[0], columns=["prediction"], index=testing_data.index
-        )
-        print(arima_fcast)
-        return
+
+        arima_fcast = pd.DataFrame(arima_fcast[0], columns=["prediction"])
+        arima_fcast.set_index(testing_data.index)
 
         plt.figure(figsize=(12, 8))
         plt.plot(testing_data["Close"], label="Actual Closing Prices")
-        plt.plot(arima_fcast.prediction, label="ARIMA Forecast", color="red")
-        plt.title(f"{self.ticker} stock price actual vs predicted")
+        plt.plot(arima_fcast["prediction"], label="ARIMA Forecast", color="red")
+        plt.title(f"{self.ticker} actual stock price  vs  predicted price")
         plt.xlabel("Date")
         plt.ylabel("Price (USD)")
         plt.legend()
         plt.show()
+
+        return
 
         # p, d, q = 1, 1, 1
         # fit ARIMA model with tuning to maximize AIC score
@@ -173,5 +162,5 @@ if __name__ == "__main__":
     tracker = StockTracker(args.stock, args.period)
     stock_data = tracker.get_stock_history()
     training_data, testing_data = tracker.get_model_data(stock_data)
-    tracker.forecast_testing_data(training_data)
+    tracker.forecast_testing_data(testing_data)
     exit()
