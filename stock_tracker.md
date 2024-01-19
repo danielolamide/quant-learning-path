@@ -21,6 +21,11 @@ Libraries:
 - Understanding the charcteristics of stock data and identification of patterns.
 - Creating visualizations (candlestick charts, line charts).
 - Exploring summary statistics and distribution and trends.
+
+#### Time Series Analysis
+##### Objectives
+- Analyze and model the behavior of financial instruments over time.
+- Explore concepts like autorelation, volatility and seasonality
 ##### Notes
 - Time series is the study of data points collected/recorded over time.  
 - Time series are either stationary or non-stationary.  
@@ -38,8 +43,7 @@ Libraries:
     - Moving average component involves predicting a future value based on past forecast errors.
 ######  ARIMA Modelling Process:
 ![Arima modelling process](./images/arima-process.png) 
-
-#### Time Series Analysis
-##### Objectives
-- Analyze and model the behavior of financial instruments over time.
-- Explore concepts like autorelation, volatility and seasonality
+- Identify stationarity
+- Identify model parameters (autoregression component, order of differencing and order of moving average components.
+- Use historical data to estimate model parameters (fit ARIMA model)
+- Make forecasts
