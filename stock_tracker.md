@@ -22,6 +22,16 @@ Libraries:
 - Creating visualizations (candlestick charts, line charts).
 - Exploring summary statistics and distribution and trends.
 
+##### Notes
+- Understanding the different financial instruments - Stocks(Equities), Fixed-Income(Bonds), Derivatives(Options, Futures), Forex, Commodities, REITs, Mutual Funds, Crypto.
+- Stock trading is the buying and selling of stocks.
+- Short selling is the borrowing of shares and immediately selling them in the hope of buying for cheaper and making a margin.
+- Dividends are the distribution of a companies profits. E.g cash dividends, stock dividends, dividend yield.
+- Stock split, is an action that increase number of shares whilst decreasing cost per share, without affecting overall market of the company.
+- Adjusted prices refer to prices that have been modified due to corporate actions (dividends and stock splits).
+- A moving average is a statistical calculation that smooths out fluctuations and helps to discover trends over time.
+
+
 #### Time Series Analysis
 ##### Objectives
 - Analyze and model the behavior of financial instruments over time.
