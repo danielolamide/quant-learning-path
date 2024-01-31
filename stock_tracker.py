@@ -3,8 +3,6 @@ import pandas as pd
 import yfinance as yf
 import argparse
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.arima.model import ARIMA
 import pmdarima as pm
 from typing import Tuple
 
@@ -82,12 +80,6 @@ class StockTracker:
         plt.legend()
         plt.show()
 
-    def test_stationarity(self, stock_data: DataFrame):
-        result = adfuller(stock_data["Close"], autolag="AIC")
-        print("ADF Statistic", result[0])
-        print("p-value", result[1])
-        print("Critical Values", result[4])
-
     def fit_model(self, training_data):
         arima_fit = pm.auto_arima(
             training_data["Close"],
@@ -97,7 +89,6 @@ class StockTracker:
             approximation=False,
             seasonal=False,
         )
-        # print(arima_fit.summary())
         return arima_fit
 
     def forecast_testing_data(self, testing_data: DataFrame):
@@ -107,10 +98,6 @@ class StockTracker:
         arima_fcast = arima_fit.predict(
             n_periods=n_fcast, return_conf_int=True, alpha=0.05
         )
-        # arima_fcast = [
-        #     pd.DataFrame(arima_fcast[0], columns=["prediction"]),
-        #     pd.DataFrame(arima_fcast[1], columns=["lower_95", "upper_95"]),
-        # ]
 
         arima_fcast = pd.DataFrame(arima_fcast[0], columns=["prediction"])
         arima_fcast.set_index(testing_data.index)
@@ -123,26 +110,6 @@ class StockTracker:
         plt.ylabel("Price (USD)")
         plt.legend()
         plt.show()
-
-        return
-
-        # p, d, q = 1, 1, 1
-        # fit ARIMA model with tuning to maximize AIC score
-        # model = ARIMA(stock_data["Close"], order=(p, d, q))
-        # results = model.fit()
-        #
-        # forecast_steps = 10
-        # forecast = results.get_forecast(steps=forecast_steps)
-        # print(forecast.predicted_mean)
-        #
-        # plt.figure(figsize=(12, 6))
-        # plt.plot(stock_data["Close"], label="Historical Data")
-        # # plt.plot(forecast.predicted_mean, color="red", label="Forecast")
-        # plt.title(f"ARIMA ({p}, {d}, {q}) Forecast for {self.ticker}")
-        # plt.xlabel("Date")
-        # plt.ylabel("Closing Price")
-        # plt.legend()
-        # plt.show()
 
 
 if __name__ == "__main__":
