@@ -22,6 +22,43 @@ class MACDStrategy:
     def exec_macd(self, stock_data):
         stock_data.ta.macd(close="Close", fast=12, slow=26, signal=9, append=True)
         stock_data.columns = [x.lower() for x in stock_data.columns]
+        return stock_data
+
+    def define_signals(self, stock_data):
+        stock_data["signal"] = 0
+        stock_data.loc[
+            stock_data["macd_12_26_9"] > stock_data["macds_12_26_9"], "signal"
+        ] = 1  # Bull
+        stock_data.loc[
+            stock_data["macd_12_26_9"] < stock_data["macds_12_26_9"], "signal"
+        ] = -1  # Bear
+        return stock_data
+
+    def backtest_strategy(self, stock_data):
+        signals = self.define_signals(stock_data)
+        portfolio_value = 1000
+        buy_price = 0
+        sell_price = 0
+        position = 0
+
+        for index, row in signals.iterrows():
+            if row["signal"] == 1:
+                if position == 0:
+                    position = portfolio_value / row["open"]
+                    buy_price = row["open"]
+                    portfolio_value -= position * buy_price
+            elif row["signal"] == -1:
+                if position > 0:
+                    sell_price = row["open"]
+                    portfolio_value += position * sell_price
+                    position = 0
+
+        final_portfolio_value = (
+            portfolio_value + position * stock_data.iloc[-1]["close"]
+        )
+        return final_portfolio_value
+
+    def plot_macd(self, stock_data):
         fig = make_subplots(rows=2, cols=1)
         # price lines
         fig.append_trace(
@@ -88,6 +125,12 @@ class MACDStrategy:
 
         fig.show()
 
+    def run_strategy(self):
+        stock_data = self.get_stock_history()
+        stock_data_w_signals = self.define_signals(self.exec_macd(stock_data))
+        portfolio_value = self.backtest_strategy(stock_data_w_signals)
+        print(portfolio_value)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -103,5 +146,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     strategy = MACDStrategy(args.stock, args.period)
-    stock_data = strategy.get_stock_history()
-    strategy.exec_macd(stock_data)
+    strategy.run_strategy()
